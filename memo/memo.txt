@@ -1,7 +1,10 @@
-phase01:pythonでラジコンカーを作成
-phase02:カメラ追加
-phase03:リアルタイムでカメラの動画取得
-phase04:障害検知
-phase05:大きい版作成
-phase06:モータに芝刈り道具装着
-phase07:ドローンと連携
+from pyspark.sql import functions as F
+
+# サンプルDataFrameの作成
+df1 = spark.createDataFrame([(1, "Alice"), (2, "Bob"), (3, "Charlie")], ["id", "name"])
+df2 = spark.createDataFrame([(10, "Math"), (20, "Science"), (30, "History")], ["score", "subject"])
+
+# 列ベースで結合（順序に基づく）
+merged_df = df2.select("*").withColumns(df1.columns, [df1[col] for col in df1.columns])
+
+merged_df.show()
