@@ -5,11 +5,9 @@ HIVE_URL="jdbc:hive2://your_hive_host:10000"
 HIVE_USER="your_user"
 HIVE_PASSWORD="your_password"
 
-# 出力ファイル
-OUTPUT_FILE="hive_ddl.txt"
-
-# 出力ファイルを初期化
-echo "-- Hive DDL Export --" > $OUTPUT_FILE
+# 出力ディレクトリを作成（既に存在する場合は無視）
+OUTPUT_DIR="hive_ddl_output"
+mkdir -p $OUTPUT_DIR
 
 # すべてのデータベースを取得
 databases=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "SHOW DATABASES")
@@ -17,24 +15,27 @@ databases=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true -
 # 各データベースごとに処理
 for db in $databases
 do
-    echo "Database: $db" >> $OUTPUT_FILE
-    echo "=====================" >> $OUTPUT_FILE
+    # データベース名が空行でないか確認
+    if [ -n "$db" ]; then
+        echo "Processing database: $db"
 
-    # データベース内のすべてのテーブルを取得
-    tables=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE $db; SHOW TABLES")
+        # データベース内のすべてのテーブルを取得
+        tables=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE \`$db\`; SHOW TABLES")
 
-    for table in $tables
-    do
-        echo "Table: $table" >> $OUTPUT_FILE
-        echo "---------------------" >> $OUTPUT_FILE
-        
-        # 各テーブルのDDLを取得
-        ddl=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE $db; SHOW CREATE TABLE $table")
-        
-        # DDLをファイルに書き込む
-        echo "$ddl" >> $OUTPUT_FILE
-        echo "" >> $OUTPUT_FILE
-    done
+        for table in $tables
+        do
+            # テーブル名が空行でないか確認
+            if [ -n "$table" ]; then
+                # 各テーブルごとにファイル名を作成（例: database_name_table_name.sql）
+                OUTPUT_FILE="$OUTPUT_DIR/${db}_${table}.sql"
+
+                echo "Exporting DDL for table: $db.$table to $OUTPUT_FILE"
+
+                # 各テーブルのDDLを取得してファイルに保存
+                beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE \`$db\`; SHOW CREATE TABLE \`$table\`" > $OUTPUT_FILE
+            fi
+        done
+    fi
 done
 
-echo "DDL情報が $OUTPUT_FILE に保存されました。"
+echo "各テーブルのDDLが '$OUTPUT_DIR' フォルダに保存されました。"
