@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Hive/Beelineの接続情報 (必要に応じて適宜変更)
+HIVE_URL="jdbc:hive2://your_hive_host:10000"
+HIVE_USER="your_user"
+HIVE_PASSWORD="your_password"
+
+# 出力ファイル
+OUTPUT_FILE="hive_ddl.txt"
+
+# 出力ファイルを初期化
+echo "-- Hive DDL Export --" > $OUTPUT_FILE
+
+# すべてのデータベースを取得
+databases=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "SHOW DATABASES")
+
+# 各データベースごとに処理
+for db in $databases
+do
+    echo "Database: $db" >> $OUTPUT_FILE
+    echo "=====================" >> $OUTPUT_FILE
+
+    # データベース内のすべてのテーブルを取得
+    tables=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE $db; SHOW TABLES")
+
+    for table in $tables
+    do
+        echo "Table: $table" >> $OUTPUT_FILE
+        echo "---------------------" >> $OUTPUT_FILE
+        
+        # 各テーブルのDDLを取得
+        ddl=$(beeline -u $HIVE_URL -n $HIVE_USER -p $HIVE_PASSWORD --silent=true --outputformat=tsv -e "USE $db; SHOW CREATE TABLE $table")
+        
+        # DDLをファイルに書き込む
+        echo "$ddl" >> $OUTPUT_FILE
+        echo "" >> $OUTPUT_FILE
+    done
+done
+
+echo "DDL情報が $OUTPUT_FILE に保存されました。"
