@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# 変数の定義
+DB_USER="username"
+DB_PASS="password"
+DB_NAME="database_name"
+TABLE_NAME="employees"
+EMP_ID=123
+
+# 動的なSQLクエリの作成
+sql_query="SELECT name, position FROM ${TABLE_NAME} WHERE id = ${EMP_ID};"
+
+# MySQLクエリを実行し、結果を出力
+mysql -u ${DB_USER} -p${DB_PASS} -D ${DB_NAME} -e "${sql_query}"
