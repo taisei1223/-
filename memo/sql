@@ -12,3 +12,5 @@ sql_query="SELECT name, position FROM ${TABLE_NAME} WHERE id = ${EMP_ID};"
 
 # MySQLクエリを実行し、結果を出力
 mysql -u ${DB_USER} -p${DB_PASS} -D ${DB_NAME} -e "${sql_query}"
+
+sed '1s/^\(.\{13\}\)/\1Apple/'
