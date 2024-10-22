@@ -1,0 +1,16 @@
+Sub ColorRowsBasedOnStatus()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet1") ' シート名を調整してください
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim i As Long
+    For i = 1 To lastRow
+        If ws.Cells(i, 1).Value = "確認待ち" Then
+            ws.Rows(i).Interior.Color = RGB(144, 238, 144) ' 薄緑
+        ElseIf ws.Cells(i, 1).Value = "完了" Then
+            ws.Rows(i).Interior.Color = RGB(192, 192, 192) ' 灰色
+        End If
+    Next i
+End Sub
