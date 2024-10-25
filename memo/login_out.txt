@@ -1,0 +1,13 @@
+# スクリプトを PowerShell エディタに貼り付け、例: C:\Scripts\LogUserActivity.ps1 として保存
+$date = Get-Date -Format "yyyy-MM-dd"
+$logFile = "C:\Logs\UserActivity_$date.txt"
+
+# ログインイベントを取得
+Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4624} | ForEach-Object {
+    "$($_.TimeGenerated) - Login - $($_.ReplacementStrings[5])" | Out-File -Append -FilePath $logFile
+}
+
+# ログアウトイベントを取得
+Get-EventLog -LogName Security | Where-Object {$_.EventID -eq 4634} | ForEach-Object {
+    "$($_.TimeGenerated) - Logout - $($_.ReplacementStrings[5])" | Out-File -Append -FilePath $logFile
+}
