@@ -1,6 +1,6 @@
-import openpyxl
 import subprocess
 import pandas as pd
+import socket
 
 def get_yum_list():
     # subprocessでyumコマンド実行
@@ -27,12 +27,16 @@ def get_yum_list():
     df = pd.DataFrame(package_data)
     return df
 
-def save_to_excel(df, file_name):
+def save_to_excel(df):
+    # ホスト名を取得
+    hostname = socket.gethostname()
+    # ファイル名にホスト名を組み込む
+    file_name = f"yum_list_installed_{hostname}.xlsx"
     # Excelファイルに保存
     df.to_excel(file_name, index=False)
+    return file_name
 
 if __name__ == "__main__":
     df = get_yum_list()
-    excel_file = "yum_list_installed.xlsx"
-    save_to_excel(df, excel_file)
+    excel_file = save_to_excel(df)
     print(f"Excel file saved: {excel_file}")
