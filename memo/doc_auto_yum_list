@@ -1,6 +1,7 @@
 import subprocess
 import pandas as pd
 import socket
+improt openpyxl
 
 def get_yum_list():
     # subprocessでyumコマンド実行
@@ -12,13 +13,16 @@ def get_yum_list():
     if start_index is None:
         raise ValueError("Installed Packages not found in yum output")
 
-    # データ部分を抽出
+    # データ部分を抽出し、パッケージ名にバージョンを組み込む
     package_data = []
     for line in lines[start_index + 1:]:
         columns = line.split()
         if len(columns) >= 3:
+            package_name = columns[0]  # パッケージ名
+            version = columns[1]      # バージョン
+            modified_package_name = f"{package_name}-{version.split('-')[0]}"  # バージョンを組み込む
             package_data.append({
-                'Package': columns[0],
+                'Package': modified_package_name,
                 'Version': columns[1],
                 'Repository': columns[2]
             })
