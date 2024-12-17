@@ -1,0 +1,29 @@
+import subprocess
+import pkg_resources
+
+def get_wheel_url(package_name):
+    # インストール済みパッケージの情報を取得
+    installed_packages = {dist.project_name: dist for dist in pkg_resources.working_set}
+    
+    # パッケージがインストールされているか確認
+    if package_name in installed_packages:
+        dist = installed_packages[package_name]
+        return dist.as_requirement().url
+    else:
+        return None
+
+def install_packages(requirements_file):
+    with open(requirements_file, 'r') as file:
+        packages = file.readlines()
+    
+    for package in packages:
+        package_name = package.strip().split('==')[0]
+        wheel_url = get_wheel_url(package_name)
+        if wheel_url:
+            print(f"Package: {package_name}, Wheel URL: {wheel_url}")
+        else:
+            print(f"Package: {package_name} is not installed.")
+
+# requirements.txt のパスを指定
+requirements_file = 'requirements.txt'
+install_packages(requirements_file)
