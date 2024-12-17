@@ -1,29 +1,38 @@
 import subprocess
-import pkg_resources
 
-def get_wheel_url(package_name):
-    # インストール済みパッケージの情報を取得
-    installed_packages = {dist.project_name: dist for dist in pkg_resources.working_set}
-    
-    # パッケージがインストールされているか確認
-    if package_name in installed_packages:
-        dist = installed_packages[package_name]
-        return dist.as_requirement().url
-    else:
-        return None
+def get_installed_packages():
+    result = subprocess.run(['pip', 'list', '--format=freeze'], stdout=subprocess.PIPE, text=True)
+    installed_packages = {}
+    for line in result.stdout.splitlines():
+        if '==' in line:
+            pkg_name, pkg_version = line.split('==')
+            installed_packages[pkg_name] = pkg_version
+    return installed_packages
 
-def install_packages(requirements_file):
+def get_wheel_url(package_name, package_version):
+    url = f"https://pypi.org/pypi/{package_name}/{package_version}/json"
+    result = subprocess.run(['curl', '-s', url], stdout=subprocess.PIPE, text=True)
+    package_info = json.loads(result.stdout)
+    if 'urls' in package_info:
+        for file_info in package_info['urls']:
+            if file_info['packagetype'] == 'bdist_wheel':
+                return file_info['url']
+    return None
+
+def process_requirements(requirements_file):
+    installed_packages = get_installed_packages()
     with open(requirements_file, 'r') as file:
-        packages = file.readlines()
-    
-    for package in packages:
-        package_name = package.strip().split('==')[0]
-        wheel_url = get_wheel_url(package_name)
-        if wheel_url:
-            print(f"Package: {package_name}, Wheel URL: {wheel_url}")
-        else:
-            print(f"Package: {package_name} is not installed.")
+        for line in file:
+            package_name, package_version = line.strip().split('==')
+            if package_name in installed_packages and installed_packages[package_name] == package_version:
+                wheel_url = get_wheel_url(package_name, package_version)
+                if wheel_url:
+                    print(f"Package: {package_name}, Wheel URL: {wheel_url}")
+                else:
+                    print(f"Wheel URL for {package_name} not found.")
+            else:
+                print(f"Package {package_name} is not installed or version mismatch.")
 
-# requirements.txt のパスを指定
 requirements_file = 'requirements.txt'
-install_packages(requirements_file)
+process_requirements(requirements_file)
+
