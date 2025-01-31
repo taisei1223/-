@@ -1,0 +1,9 @@
+Private Sub Workbook_Open()
+    Application.OnKey "^v", "PasteValuesOnly"
+End Sub
+
+Sub PasteValuesOnly()
+    If Application.CutCopyMode Then
+        Selection.PasteSpecial Paste:=xlPasteValues
+    End If
+End Sub
