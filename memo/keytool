@@ -1,0 +1,1 @@
+keytool -import -trustcacerts -alias myca -file myca.crt -keystore /path/to/keystore.jks -storepass <password>
