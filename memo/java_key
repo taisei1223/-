@@ -1,35 +1,92 @@
-#!/bin/bash
+スクリプト内で作成される各ファイルの役割を説明します。
 
-# 設定（必要に応じて変更）
-KEYSTORE_PASSWORD="changeit"
-TRUSTSTORE_PASSWORD="changeit"
-KEY_ALIAS="mykey"
-TRUST_ALIAS="mytrustedcert"
-KEYSTORE_FILE="keystore.jks"
-TRUSTSTORE_FILE="truststore.jks"
-CERT_FILE="mycert.crt"
-KEY_ALGORITHM="RSA"
-KEY_SIZE=2048
-VALIDITY_DAYS=365
-DNAME="CN=example.com, OU=IT, O=MyCompany, L=Tokyo, ST=Tokyo, C=JP"
+1. mykey.pem（秘密鍵）
+	•	RSA 2048bit の 秘密鍵。
+	•	証明書（X.509）を作成するために必要。
+	•	keystore.jks に登録される。
 
-echo "### 1. keystore.jks を作成 (秘密鍵 + 証明書) ###"
-keytool -genkeypair -alias "$KEY_ALIAS" -keyalg "$KEY_ALGORITHM" -keysize "$KEY_SIZE" \
-  -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" \
-  -validity "$VALIDITY_DAYS" -dname "$DNAME" -keypass "$KEYSTORE_PASSWORD"
+使われる場所:
+	•	openssl req -new -newkey で作成
+	•	openssl x509 -req で証明書を署名
+	•	openssl pkcs12 -export で keystore.p12 に変換
 
-echo "### 2. 証明書をエクスポート ($CERT_FILE) ###"
-keytool -exportcert -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" \
-  -storepass "$KEYSTORE_PASSWORD" -file "$CERT_FILE"
+2. mycert.csr（証明書署名リクエスト, CSR）
+	•	証明書を発行するためのリクエスト（X.509 の Subject 情報を含む）。
+	•	自己署名証明書を作成するために 一時的に作成 されるファイル。
 
-echo "### 3. truststore.jks を作成 (証明書をインポート) ###"
-keytool -importcert -alias "$TRUST_ALIAS" -file "$CERT_FILE" \
-  -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD" -noprompt
+使われる場所:
+	•	openssl req -new で作成
+	•	openssl x509 -req で署名に使用
 
-echo "### 4. keystore.jks の内容確認 ###"
-keytool -list -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD"
+3. mycert_signed.pem（自己署名証明書, CA:TRUE 拡張付き）
+	•	CA:TRUE 拡張付きの自己署名証明書（X.509）。
+	•	keystore.jks や truststore.jks に登録される 公開証明書。
+	•	.pem 形式（Base64 エンコードの X.509 証明書）。
 
-echo "### 5. truststore.jks の内容確認 ###"
-keytool -list -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD"
+使われる場所:
+	•	openssl x509 -req で作成（CA:TRUE を追加）
+	•	openssl pkcs12 -export で keystore.p12 に変換
+	•	keytool -importcert で truststore.jks に登録
 
-echo "### 完了！ ###"
+4. keystore.p12（秘密鍵 + 証明書を含む PKCS12 ファイル）
+	•	秘密鍵と証明書をまとめた PKCS#12 形式のファイル。
+	•	keytool で keystore.jks に変換 するために使用。
+
+使われる場所:
+	•	openssl pkcs12 -export で作成
+	•	keytool -importkeystore で keystore.jks に変換
+
+5. keystore.jks（Java キーストア, 秘密鍵 + 証明書）
+	•	秘密鍵と X.509 証明書を格納する Java キーストア（JKS）。
+	•	keystore.p12 を keytool で変換して作成。
+
+使われる場所:
+	•	サーバーが SSL 証明書を提供する側 で使用。
+	•	Tomcat, Spring Boot などの HTTPS 設定に使用可能。
+
+作成方法:
+	•	keytool -importkeystore で keystore.p12 から作成
+
+6. mycert_signed.crt（JKS 用のエクスポート証明書）
+	•	keystore.jks からエクスポートした X.509 証明書（公開鍵）。
+	•	truststore.jks にインポートするために使用。
+
+使われる場所:
+	•	keytool -exportcert で keystore.jks からエクスポート
+	•	keytool -importcert で truststore.jks に登録
+
+7. truststore.jks（Java トラストストア, 信頼する証明書を格納）
+	•	信頼できる CA 証明書を保存するための Java キーストア（JKS）。
+	•	mycert_signed.crt を登録して作成。
+
+使われる場所:
+	•	クライアント側が SSL 接続時に証明書を検証 するために使用。
+	•	keytool -importcert で truststore.jks にインポート
+
+ファイルの関係図
+
+[秘密鍵 (mykey.pem)] 
+   ├─> [証明書署名リクエスト (mycert.csr)]
+   │     ├─> [CA:TRUE 証明書 (mycert_signed.pem)]
+   │     │     ├─> [PKCS12 (keystore.p12)]
+   │     │     │     ├─> [Java Keystore (keystore.jks)]
+   │     │     │     │     ├─> [エクスポート証明書 (mycert_signed.crt)]
+   │     │     │     │     │     ├─> [Java Truststore (truststore.jks)]
+
+まとめ
+
+ファイル名	役割	関連コマンド
+mykey.pem	RSA 秘密鍵	openssl req -new -newkey
+mycert.csr	証明書署名リクエスト (CSR)	openssl req -new
+mycert_signed.pem	CA:TRUE 拡張付き自己署名証明書 (X.509)	openssl x509 -req
+keystore.p12	秘密鍵 + 証明書 (PKCS12 形式)	openssl pkcs12 -export
+keystore.jks	Java キーストア (秘密鍵 + 証明書)	keytool -importkeystore
+mycert_signed.crt	keystore.jks からエクスポートした証明書	keytool -exportcert
+truststore.jks	Java トラストストア (信頼する証明書を格納)	keytool -importcert
+
+補足
+	•	keystore.jks は 秘密鍵を含むため、サーバー側 で使用。
+	•	truststore.jks は 証明書を検証するため、クライアント側 で使用。
+	•	CA:TRUE を有効にするため、keytool ではなく openssl で証明書を作成。
+
+このファイル構成で CA:TRUE 拡張付きの keystore.jks & truststore.jks を正しく作成 できます！
