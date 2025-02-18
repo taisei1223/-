@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# 設定（必要に応じて変更）
+KEYSTORE_PASSWORD="changeit"
+TRUSTSTORE_PASSWORD="changeit"
+KEY_ALIAS="mykey"
+TRUST_ALIAS="mytrustedcert"
+KEYSTORE_FILE="keystore.jks"
+TRUSTSTORE_FILE="truststore.jks"
+CERT_FILE="mycert.crt"
+KEY_ALGORITHM="RSA"
+KEY_SIZE=2048
+VALIDITY_DAYS=365
+DNAME="CN=example.com, OU=IT, O=MyCompany, L=Tokyo, ST=Tokyo, C=JP"
+
+echo "### 1. keystore.jks を作成 (秘密鍵 + 証明書) ###"
+keytool -genkeypair -alias "$KEY_ALIAS" -keyalg "$KEY_ALGORITHM" -keysize "$KEY_SIZE" \
+  -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" \
+  -validity "$VALIDITY_DAYS" -dname "$DNAME" -keypass "$KEYSTORE_PASSWORD"
+
+echo "### 2. 証明書をエクスポート ($CERT_FILE) ###"
+keytool -exportcert -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" \
+  -storepass "$KEYSTORE_PASSWORD" -file "$CERT_FILE"
+
+echo "### 3. truststore.jks を作成 (証明書をインポート) ###"
+keytool -importcert -alias "$TRUST_ALIAS" -file "$CERT_FILE" \
+  -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD" -noprompt
+
+echo "### 4. keystore.jks の内容確認 ###"
+keytool -list -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD"
+
+echo "### 5. truststore.jks の内容確認 ###"
+keytool -list -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD"
+
+echo "### 完了！ ###"
