@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# 設定
+KEYSTORE_PASSWORD="changeit"
+TRUSTSTORE_PASSWORD="changeit"
+KEY_ALIAS="mykey"
+TRUST_ALIAS="mytrustedcert"
+KEYSTORE_FILE="keystore.jks"
+TRUSTSTORE_FILE="truststore.jks"
+CERT_FILE="mycert.pem"
+PRIVATE_KEY_FILE="mykey.pem"
+CSR_FILE="mycert.csr"
+SIGNED_CERT_FILE="mycert_signed.pem"
+JKS_CERT_FILE="mycert_signed.crt"
+KEY_ALGORITHM="RSA"
+KEY_SIZE=2048
+VALIDITY_DAYS=365
+DNAME="/CN=example.com/OU=IT/O=MyCompany/L=Tokyo/ST=Tokyo/C=JP"
+
+echo "### 1. 秘密鍵と CSR (証明書署名リクエスト) を作成 ###"
+openssl req -new -newkey "$KEY_ALGORITHM":"$KEY_SIZE" -nodes \
+  -keyout "$PRIVATE_KEY_FILE" -out "$CSR_FILE" -subj "$DNAME"
+
+echo "### 2. CA:TRUE 拡張付きの自己署名証明書を作成 ###"
+openssl x509 -req -days "$VALIDITY_DAYS" -in "$CSR_FILE" -signkey "$PRIVATE_KEY_FILE" -out "$SIGNED_CERT_FILE" \
+  -extfile <(echo "basicConstraints=critical,CA:TRUE")
+
+echo "### 3. keystore.jks を作成 (秘密鍵 + CA 証明書) ###"
+openssl pkcs12 -export -in "$SIGNED_CERT_FILE" -inkey "$PRIVATE_KEY_FILE" -out keystore.p12 \
+  -name "$KEY_ALIAS" -password pass:"$KEYSTORE_PASSWORD"
+
+keytool -importkeystore -srckeystore keystore.p12 -srcstoretype PKCS12 \
+  -destkeystore "$KEYSTORE_FILE" -deststorepass "$KEYSTORE_PASSWORD" -srcstorepass "$KEYSTORE_PASSWORD"
+
+echo "### 4. 証明書をエクスポート ($JKS_CERT_FILE) ###"
+keytool -exportcert -alias "$KEY_ALIAS" -keystore "$KEYSTORE_FILE" \
+  -storepass "$KEYSTORE_PASSWORD" -file "$JKS_CERT_FILE"
+
+echo "### 5. truststore.jks を作成 (CA 証明書をインポート) ###"
+keytool -importcert -alias "$TRUST_ALIAS" -file "$JKS_CERT_FILE" \
+  -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD" -noprompt
+
+echo "### 6. keystore.jks の内容確認 ###"
+keytool -list -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD"
+
+echo "### 7. truststore.jks の内容確認 ###"
+keytool -list -keystore "$TRUSTSTORE_FILE" -storepass "$TRUSTSTORE_PASSWORD"
+
+echo "### 完了！ keystore.jks と truststore.jks が作成されました ###"
