@@ -1,0 +1,6 @@
+keytool -importcert \
+    -alias mycert \
+    -file mycert.pem \
+    -keystore mytruststore.jks \
+    -storepass truststorePassword \
+    -noprompt
