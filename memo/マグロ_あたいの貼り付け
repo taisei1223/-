@@ -1,9 +1,58 @@
-Private Sub Workbook_Open()
-    Application.OnKey "^v", "PasteValuesOnly"
-End Sub
+#!/bin/bash
 
-Sub PasteValuesOnly()
-    If Application.CutCopyMode Then
-        Selection.PasteSpecial Paste:=xlPasteValues
-    End If
-End Sub
+# ==========================
+# 設定（適宜変更してください）
+# ==========================
+CERT_FILE="cert.pem"      # サーバー証明書
+KEY_FILE="private.key"    # 秘密鍵
+CA_FILE="ca.pem"          # ルート証明書
+KEYSTORE_PASSWORD="keystorepassword"  # keystore.jks のパスワード
+TRUSTSTORE_PASSWORD="truststorepassword"  # truststore.jks のパスワード
+KEY_ALIAS="mycert"        # キーストアのエイリアス名
+
+# ==========================
+# PKCS12 ファイルを作成
+# ==========================
+echo "🔹 PKCS12 ファイルを作成中..."
+openssl pkcs12 -export \
+    -in "$CERT_FILE" \
+    -inkey "$KEY_FILE" \
+    -certfile "$CA_FILE" \
+    -out keystore.p12 \
+    -name "$KEY_ALIAS" \
+    -password pass:"$KEYSTORE_PASSWORD"
+
+# ==========================
+# keystore.jks に変換
+# ==========================
+echo "🔹 keystore.jks を作成中..."
+keytool -importkeystore \
+    -srckeystore keystore.p12 \
+    -srcstoretype PKCS12 \
+    -destkeystore keystore.jks \
+    -deststoretype JKS \
+    -srcstorepass "$KEYSTORE_PASSWORD" \
+    -deststorepass "$KEYSTORE_PASSWORD" \
+    -alias "$KEY_ALIAS"
+
+# ==========================
+# truststore.jks を作成
+# ==========================
+echo "🔹 truststore.jks を作成中..."
+keytool -importcert \
+    -alias rootCA \
+    -file "$CA_FILE" \
+    -keystore truststore.jks \
+    -storepass "$TRUSTSTORE_PASSWORD" \
+    -noprompt
+
+# ==========================
+# JKS の内容確認
+# ==========================
+echo "🔹 keystore.jks の内容:"
+keytool -list -keystore keystore.jks -storepass "$KEYSTORE_PASSWORD"
+
+echo "🔹 truststore.jks の内容:"
+keytool -list -keystore truststore.jks -storepass "$TRUSTSTORE_PASSWORD"
+
+echo "✅ PEM → JKS 変換が完了しました！"
