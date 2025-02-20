@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# ==========================
+# 設定（適宜変更してください）
+# ==========================
+PFX_FILE="cert.pfx"  # 入力する PFX ファイル
+PFX_PASSWORD="pfxpassword"  # PFX のパスワード
+TRUSTSTORE_PASSWORD="truststorepassword"  # truststore.jks のパスワード
+KEYSTORE_PASSWORD="keystorepassword"  # keystore.jks のパスワード
+KEY_ALIAS="mycert"  # キーストアのエイリアス名
+
+# ==========================
+# PFX から証明書・秘密鍵を抽出
+# ==========================
+echo "🔹 PFX から証明書と秘密鍵を抽出中..."
+openssl pkcs12 -in $PFX_FILE -nocerts -nodes -out private.key -password pass:$PFX_PASSWORD
+openssl pkcs12 -in $PFX_FILE -clcerts -nokeys -out cert.pem -password pass:$PFX_PASSWORD
+openssl pkcs12 -in $PFX_FILE -cacerts -nokeys -out ca.pem -password pass:$PFX_PASSWORD
+
+# ==========================
+# truststore.jks を作成
+# ==========================
+echo "🔹 truststore.jks を作成中..."
+keytool -importcert -alias rootCA -file ca.pem -keystore truststore.jks -storepass $TRUSTSTORE_PASSWORD -noprompt
+
+# ==========================
+# PKCS12 ファイルを作成
+# ==========================
+echo "🔹 keystore.p12 を作成中..."
+openssl pkcs12 -export -in cert.pem -inkey private.key -certfile ca.pem -out keystore.p12 -name $KEY_ALIAS -password pass:$KEYSTORE_PASSWORD
+
+# ==========================
+# keystore.jks に変換
+# ==========================
+echo "🔹 keystore.jks を作成中..."
+keytool -importkeystore -srckeystore keystore.p12 -srcstoretype PKCS12 -destkeystore keystore.jks -deststoretype JKS -srcstorepass $KEYSTORE_PASSWORD -deststorepass $KEYSTORE_PASSWORD -alias $KEY_ALIAS
+
+# ==========================
+# JKS の内容確認
+# ==========================
+echo "🔹 truststore.jks の内容:"
+keytool -list -keystore truststore.jks -storepass $TRUSTSTORE_PASSWORD
+
+echo "🔹 keystore.jks の内容:"
+keytool -list -keystore keystore.jks -storepass $KEYSTORE_PASSWORD
+
+echo "✅ 変換完了！"
