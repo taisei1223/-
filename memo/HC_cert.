@@ -13,9 +13,9 @@ KEY_ALIAS="mycert"  # キーストアのエイリアス名
 # PFX から証明書・秘密鍵を抽出
 # ==========================
 echo "🔹 PFX から証明書と秘密鍵を抽出中..."
-openssl pkcs12 -in $PFX_FILE -nocerts -nodes -out private.key -password pass:$PFX_PASSWORD
-openssl pkcs12 -in $PFX_FILE -clcerts -nokeys -out cert.pem -password pass:$PFX_PASSWORD
-openssl pkcs12 -in $PFX_FILE -cacerts -nokeys -out ca.pem -password pass:$PFX_PASSWORD
+openssl pkcs12 -in $PFX_FILE -nocerts -nodes -out private.key -password pass:$PFX_PASSWORD -legacy
+openssl pkcs12 -in $PFX_FILE -clcerts -nokeys -out cert.pem -password pass:$PFX_PASSWORD -legacy
+openssl pkcs12 -in $PFX_FILE -cacerts -nokeys -out ca.pem -password pass:$PFX_PASSWORD -legacy
 
 # ==========================
 # truststore.jks を作成
