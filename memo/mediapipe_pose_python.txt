@@ -1,0 +1,126 @@
+import cv2
+import mediapipe as mp
+import math
+
+# --- キーポイント抽出 ---
+class PoseExtractor:
+    def __init__(self):
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose()
+    
+    def extract_keypoints(self, image):
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(image_rgb)
+        if results.pose_landmarks:
+            keypoints = []
+            for lm in results.pose_landmarks.landmark:
+                keypoints.append((lm.x, lm.y))  # x, y座標
+            return keypoints
+        else:
+            return None
+
+# --- ポーズの判別 ---
+def determine_pose_type(keypoints):
+    """
+    フロントポーズかバックポーズかを判別
+    """
+    if keypoints is None:
+        return "未判別"
+    
+    nose = keypoints[0]  # 鼻のキーポイント
+    left_shoulder = keypoints[11]
+    right_shoulder = keypoints[12]
+    
+    if nose[0] > 0 and nose[1] > 0:  # 顔が検出されている場合
+        return "フロントポーズ"
+    elif abs(left_shoulder[0] - right_shoulder[0]) < 0.1:  # 肩の左右対称性が高い場合
+        return "バックポーズ"
+    else:
+        return "未判別"
+
+# --- フロントポーズ評価 ---
+def evaluate_front_pose(keypoints):
+    feedback = []
+    if keypoints:
+        # 肩の高さ
+        left_shoulder_y = keypoints[11][1]
+        right_shoulder_y = keypoints[12][1]
+        if abs(left_shoulder_y - right_shoulder_y) > 0.05:
+            feedback.append("左右の肩の高さが不均等です。姿勢を修正してください。")
+        else:
+            feedback.append("肩の高さは適切です。")
+
+        # 腕の角度
+        left_arm_angle = calculate_angle(keypoints[11], keypoints[13], keypoints[15])
+        if left_arm_angle < 160:
+            feedback.append(f"左腕が十分に伸びていません（角度: {left_arm_angle:.1f}度）。")
+        else:
+            feedback.append(f"左腕の角度は良好です（角度: {left_arm_angle:.1f}度）。")
+    return feedback
+
+# --- バックポーズ評価 ---
+def evaluate_back_pose(keypoints):
+    feedback = []
+    if keypoints:
+        # 肩甲骨の対称性
+        left_shoulder_y = keypoints[11][1]
+        right_shoulder_y = keypoints[12][1]
+        if abs(left_shoulder_y - right_shoulder_y) > 0.05:
+            feedback.append("後方から見て左右の肩甲骨が不均衡です。")
+        else:
+            feedback.append("肩甲骨の位置は均等です。")
+
+        # 腰の安定性
+        left_hip_y = keypoints[23][1]
+        right_hip_y = keypoints[24][1]
+        if abs(left_hip_y - right_hip_y) > 0.05:
+            feedback.append("腰の高さに不均衡があります。骨盤を整えてください。")
+        else:
+            feedback.append("腰の位置は安定しています。")
+    return feedback
+
+# --- 関節角度計算 ---
+def calculate_angle(p1, p2, p3):
+    """3点間の角度を計算"""
+    a = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+    b = math.sqrt((p2[0] - p3[0])**2 + (p2[1] - p3[1])**2)
+    c = math.sqrt((p3[0] - p1[0])**2 + (p3[1] - p1[1])**2)
+    angle = math.acos((a**2 + b**2 - c**2) / (2 * a * b))
+    return math.degrees(angle)
+
+# --- 全体パイプライン ---
+def main():
+    image_path = "example_pose.jpg"  # 入力画像
+    image = cv2.imread(image_path)
+    if image is None:
+        print("画像が見つかりません")
+        return
+
+    # キーポイント抽出
+    pose_extractor = PoseExtractor()
+    keypoints = pose_extractor.extract_keypoints(image)
+    
+    # ポーズ判別
+    pose_type = determine_pose_type(keypoints)
+    print(f"判別されたポーズ: {pose_type}")
+
+    # ポーズ評価
+    if pose_type == "フロントポーズ":
+        feedback = evaluate_front_pose(keypoints)
+    elif pose_type == "バックポーズ":
+        feedback = evaluate_back_pose(keypoints)
+    else:
+        feedback = ["ポーズが未判別です。"]
+
+    # 評価結果出力
+    print("\nポーズ評価:")
+    for comment in feedback:
+        print("- " + comment)
+    
+    # 結果画像表示
+    cv2.imshow("Pose Image", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
