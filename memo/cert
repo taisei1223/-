@@ -1,0 +1,14 @@
+openssl req -new -newkey rsa: 2048 -sha256 -keyout keystore. key -out keystore. csr 
+
+openssl x509 -req -days 11499 - in keystore. csr -signkey keystore. key - out keystore. crt
+
+openssl x509 -rea -days 11499 - in keystore. cs -signkey keystore. key - out ca_keystore. crt -extfile < (echo " basicConstraints=critical, CA: TRUE*)
+
+cat ca _keystore. crt keystore. key » infa_ keystore. pem
+
+openssl pkcs12 -export -in infa_keystore. pem -out keystore. p12 -name " informatica"
+
+keytool -v -importkeystore -srckeystore keystore. pl2 -srcstoretype
+PKCS12 -keystore infa_keystore. jks -storetype JKS -srcalias " informatica" -destalias " informatica"
+
+keytool -importcert -file infa_truststore. pem -keystore inia_truststore. jks -alias " informatica" -storetype JKS -v -trustcacerts
